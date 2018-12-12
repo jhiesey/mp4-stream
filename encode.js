@@ -12,6 +12,7 @@ function Encoder () {
 
   this.destroyed = false
 
+  this._finalized = false
   this._reading = false
   this._stream = null
   this._drain = null
@@ -37,7 +38,7 @@ util.inherits(Encoder, stream.Readable)
 Encoder.prototype.mediaData =
 Encoder.prototype.mdat = function (size, cb) {
   var stream = new MediaData(this)
-  this.box({type: 'mdat', contentLength: size, encodeBufferLen: 8, stream: stream}, cb)
+  this.box({ type: 'mdat', contentLength: size, encodeBufferLen: 8, stream: stream }, cb)
   return stream
 }
 
@@ -47,7 +48,7 @@ Encoder.prototype.box = function (box, cb) {
 
   var buf
   if (box.encodeBufferLen) {
-    buf = new Buffer(box.encodeBufferLen)
+    buf = Buffer.alloc(box.encodeBufferLen)
   }
   if (box.stream) {
     box.buffer = null
@@ -81,7 +82,10 @@ Encoder.prototype.destroy = function (err) {
 }
 
 Encoder.prototype.finalize = function () {
-  this.push(null)
+  this._finalized = true
+  if (!this._stream && !this._drain) {
+    this.push(null)
+  }
 }
 
 Encoder.prototype._forward = function () {
@@ -111,6 +115,9 @@ Encoder.prototype._read = function () {
   }
 
   this._reading = false
+  if (this._finalized) {
+    this.push(null)
+  }
 }
 
 function MediaData (parent) {
